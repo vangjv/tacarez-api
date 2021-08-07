@@ -33,7 +33,7 @@ namespace tacarez_api
             _container = _database.GetContainer(_config["Container"]);
         }
 
-        [FunctionName("GetAllFeature")]
+        [FunctionName("GetAllFeatures")]
         public async Task<IActionResult> GetAllFeatures(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "features")] HttpRequest req)
         {
@@ -41,7 +41,7 @@ namespace tacarez_api
 
             try
             {
-                var sqlQueryText = "SELECT * FROM c";
+                var sqlQueryText = "SELECT * FROM c WHERE c.type = 'feature'";
                 QueryDefinition queryDefinition = new QueryDefinition(sqlQueryText);
                 FeedIterator<Feature> queryResultSetIterator = _container.GetItemQueryIterator<Feature>(queryDefinition);
                 List<Feature> features = new List<Feature>();
@@ -72,7 +72,7 @@ namespace tacarez_api
 
             try
             {
-                var sqlQueryText = $"SELECT * FROM c WHERE c.name = '{featureName}'";
+                var sqlQueryText = $"SELECT * FROM c WHERE c.id = '{featureName}'";
                 QueryDefinition queryDefinition = new QueryDefinition(sqlQueryText);
                 FeedIterator<Feature> queryResultSetIterator = _container.GetItemQueryIterator<Feature>(queryDefinition);
                 List<Feature> features = new List<Feature>();
@@ -113,15 +113,20 @@ namespace tacarez_api
             {
                 string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
                 NewFeatureRequest featureRequest = JsonConvert.DeserializeObject<NewFeatureRequest>(requestBody);
-                Feature newFeature = featureRequest.feature;                
-                if (newFeature.Name == null)
+                Feature newFeature = featureRequest.feature.toFeature();
+                newFeature.Type = "feature";
+                if (newFeature.Id == null)
                 {
                     return new StatusCodeResult(StatusCodes.Status500InternalServerError);
                 }
-                newFeature.Id = newFeature.Name;
+
+                if (await doesFeatureExist(newFeature.Id) == true)
+                {
+                    return new BadRequestObjectResult("A feature with that name already exist");
+                }
                 NewRepoRequest newRepoReq = new NewRepoRequest
                 {
-                    name = featureRequest.feature.Name,
+                    name = featureRequest.feature.Id,
                     description = featureRequest.feature.Description,
                     is_private = false,
                     has_issues = false,
@@ -137,11 +142,16 @@ namespace tacarez_api
                 request.AddJsonBody(newRepoReq);
                 IRestResponse response = client.Execute(request);
                 Console.WriteLine(response.Content);
+                if (response.IsSuccessful == false)
+                {
+                    return new BadRequestObjectResult("Unable to create feature");
+                }
                 dynamic gitHubResponse = JsonConvert.DeserializeObject(response.Content);
                 if (gitHubResponse.errors != null)
                 {
                     return new BadRequestObjectResult(gitHubResponse.errors);
                 }
+                GithubNewRepoResponse gitHubRepoResponse = JsonConvert.DeserializeObject<GithubNewRepoResponse>(response.Content);
                 if (gitHubResponse.message != null)
                 {
                     if (((string)gitHubResponse.message).StartsWith("Invalid request"))
@@ -149,11 +159,10 @@ namespace tacarez_api
                         return new BadRequestObjectResult(gitHubResponse.message);
                     }                   
                 }
-                if (response.IsSuccessful == false)
-                {
-                    return new BadRequestObjectResult("Unable to create feature");
-                }
-                ItemResponse<Feature> item = await _container.CreateItemAsync(newFeature, new PartitionKey(newFeature.Name));
+
+                newFeature.GitHubName = getRepoNameFromURL(gitHubRepoResponse.content.url);
+                newFeature.GitHubRawURL = gitHubRepoResponse.content.download_url;
+                ItemResponse<Feature> item = await _container.CreateItemAsync(newFeature, new PartitionKey(newFeature.Type));
                 _logger.LogInformation("Item inserted");
                 _logger.LogInformation($"This query cost: {item.RequestCharge} RU/s");
                 returnValue = new OkObjectResult(newFeature);
@@ -164,6 +173,34 @@ namespace tacarez_api
                 
             }
             return returnValue;
+        }
+
+        public async Task<bool> doesFeatureExist(string featureName)
+        {
+            try
+            {
+                ItemResponse<Feature> featureResponse = await _container.ReadItemAsync<Feature>(featureName, new PartitionKey("feature"));
+                if (featureResponse.Resource != null)
+                {
+                    return true;
+                } else
+                {
+                    return false;
+                }
+            }
+            catch (Exception e)
+            {
+                return false;
+            }            
+        }
+
+        public string getRepoNameFromURL(string gitHubURL)
+        {
+            //cuts out url and parses name
+            //"https://api.github.com/repos/dshackathon/usa-map/contents/data.geojson?ref=main";
+            string beginningStripped = gitHubURL.Substring(41);
+            int indexOfSlash = beginningStripped.IndexOf("/");
+            return beginningStripped.Substring(0, indexOfSlash);
         }
     }
 }
