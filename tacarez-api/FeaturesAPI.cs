@@ -72,8 +72,8 @@ namespace tacarez_api
 
             try
             {
-                var sqlQueryText = $"SELECT * FROM c WHERE c.id = '{featureName}'";
-                QueryDefinition queryDefinition = new QueryDefinition(sqlQueryText);
+                QueryDefinition queryDefinition = new QueryDefinition("SELECT * FROM c WHERE c.type = 'feature' AND c.id = @featureName")
+                .WithParameter("@featureName", featureName);
                 FeedIterator<Feature> queryResultSetIterator = _container.GetItemQueryIterator<Feature>(queryDefinition);
                 List<Feature> features = new List<Feature>();
                 while (queryResultSetIterator.HasMoreResults)
@@ -95,6 +95,46 @@ namespace tacarez_api
                 {
                     returnValue = new NotFoundObjectResult("No feature found with that name");
                 }                
+            }
+            catch (Exception ex)
+            {
+                returnValue = new StatusCodeResult(StatusCodes.Status500InternalServerError);
+            }
+            return returnValue;
+        }
+
+        [FunctionName("GetByUser")]
+        public async Task<IActionResult> GetByUser(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "features/user/{guid}")] HttpRequest req, string guid)
+        {
+            IActionResult returnValue = null;
+
+            try
+            {
+                QueryDefinition queryDefinition = new QueryDefinition("SELECT * FROM c WHERE c.type = 'feature' AND c.Owner.GUID = @guid")
+                .WithParameter("@guid", guid);
+                FeedIterator<Feature> queryResultSetIterator = _container.GetItemQueryIterator<Feature>(queryDefinition);
+                List<Feature> features = new List<Feature>();
+                while (queryResultSetIterator.HasMoreResults)
+                {
+                    FeedResponse<Feature> currentResultSet = await queryResultSetIterator.ReadNextAsync();
+                    if (currentResultSet.Count > 0)
+                    {
+                        foreach (Feature feature in currentResultSet)
+                        {
+                            features.Add(feature);
+                            Console.WriteLine("\tRead {0}\n", feature);
+                        }
+                    }
+                }
+                if (features.Count > 0)
+                {
+                    returnValue = new OkObjectResult(features);
+                }
+                else
+                {
+                    returnValue = new NotFoundObjectResult("No features found for that user");
+                }
             }
             catch (Exception ex)
             {
