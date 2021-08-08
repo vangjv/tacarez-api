@@ -72,29 +72,17 @@ namespace tacarez_api
 
             try
             {
-                QueryDefinition queryDefinition = new QueryDefinition("SELECT * FROM c WHERE c.type = 'feature' AND c.id = @featureName")
-                .WithParameter("@featureName", featureName);
-                FeedIterator<Feature> queryResultSetIterator = _container.GetItemQueryIterator<Feature>(queryDefinition);
-                List<Feature> features = new List<Feature>();
-                while (queryResultSetIterator.HasMoreResults)
-                {
-                    FeedResponse<Feature> currentResultSet = await queryResultSetIterator.ReadNextAsync();
-                    if (currentResultSet.Count > 0)
-                    {
-                        foreach (Feature feature in currentResultSet)
-                        {
-                            features.Add(feature);
-                            Console.WriteLine("\tRead {0}\n", feature);
-                        }
-                    }                   
-                }
-                if (features.Count > 0)
-                {
-                    returnValue = new OkObjectResult(features[0]);
-                } else
+                ItemResponse<Feature> response = await _container.ReadItemAsync<Feature>(featureName, new PartitionKey("feature"))
+                .ConfigureAwait(false);
+
+                Feature item = response.Resource;
+                if (item == null)
                 {
                     returnValue = new NotFoundObjectResult("No feature found with that name");
-                }                
+                } else
+                {
+                    returnValue = new OkObjectResult(item);
+                }          
             }
             catch (Exception ex)
             {

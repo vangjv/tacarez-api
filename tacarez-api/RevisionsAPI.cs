@@ -12,6 +12,7 @@ using Microsoft.Extensions.Configuration;
 using tacarez_api.Models;
 using tacarez_api.Utility;
 using RestSharp;
+using System.Collections.Generic;
 
 namespace tacarez_api
 {
@@ -32,8 +33,8 @@ namespace tacarez_api
             _container = _database.GetContainer(_config["Container"]);
         }
 
-        [FunctionName("RevisionsAPI")]
-        public async Task<IActionResult> Run(
+        [FunctionName("CreateRevision")]
+        public async Task<IActionResult> CreateRevision(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "revisions")] HttpRequest req,
             ILogger log)
         {
@@ -89,6 +90,45 @@ namespace tacarez_api
             {
                 _logger.LogError($"Could not insert item. Exception thrown: {ex.Message}");
 
+            }
+            return returnValue;
+        }
+
+        [FunctionName("GetRevisionsByUser")]
+        public async Task<IActionResult> GetRevisionsByUser(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "revisions/user/{guid}")] HttpRequest req, string guid)
+        {
+            IActionResult returnValue = null;
+            try
+            {
+                QueryDefinition queryDefinition = new QueryDefinition("SELECT * FROM c WHERE c.type = 'revision' AND c.Owner.GUID = @guid")
+                .WithParameter("@guid", guid);
+                FeedIterator<Revision> queryResultSetIterator = _container.GetItemQueryIterator<Revision>(queryDefinition);
+                List<Revision> revisions = new List<Revision>();
+                while (queryResultSetIterator.HasMoreResults)
+                {
+                    FeedResponse<Revision> currentResultSet = await queryResultSetIterator.ReadNextAsync();
+                    if (currentResultSet.Count > 0)
+                    {
+                        foreach (Revision revision in currentResultSet)
+                        {
+                            revisions.Add(revision);
+                            Console.WriteLine("\tRead {0}\n", revision);
+                        }
+                    }
+                }
+                if (revisions.Count > 0)
+                {
+                    returnValue = new OkObjectResult(revisions);
+                }
+                else
+                {
+                    returnValue = new NotFoundObjectResult("No revisions found for that user");
+                }
+            }
+            catch (Exception ex)
+            {
+                returnValue = new StatusCodeResult(StatusCodes.Status500InternalServerError);
             }
             return returnValue;
         }
