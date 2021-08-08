@@ -42,6 +42,19 @@ namespace tacarez_api
             }
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             List<User> contributors = JsonConvert.DeserializeObject<List<User>>(requestBody);
+            bool allContributorsHaveGuid = true;
+            //check for guid
+            contributors.ForEach(contributor =>
+            {
+                if (contributor.GUID == null)
+                {
+                    allContributorsHaveGuid = false;
+                }
+            });
+            if (allContributorsHaveGuid = false)
+            {
+                return new BadRequestObjectResult("All contributors must have a guid.");
+            }
 
             //get feature
             ItemResponse<Feature> response = await _container.ReadItemAsync<Feature>(featureName, new PartitionKey("feature"))
