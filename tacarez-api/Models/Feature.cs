@@ -16,6 +16,8 @@ namespace tacarez_api
         [JsonProperty(PropertyName = "type")]
         public string Type { get; set; }
         public string Description { get; set; }
+        public DateTime? CreatedDate { get; set; }
+        public DateTime? LastModifiedDate { get; set; }
         public User Owner { get; set; }
         public List<User> Contributors { get; set; }
         public List<User> Stakeholders { get; set; }

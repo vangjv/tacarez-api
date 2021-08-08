@@ -81,6 +81,8 @@ namespace tacarez_api
                 revision.Description = revisionRequest.Description;
                 revision.GitHubRawURL = "https://raw.githubusercontent.com/dshackathon/" + revisionRequest.FeatureName + "/" + revisionRequest.RevisionName + "/data.geojson";
                 revision.Owner = revisionRequest.Owner;
+                revision.CreatedDate = DateTime.Now;
+                revision.LastModifiedDate = DateTime.Now;
                 ItemResponse<Revision> item = await _container.CreateItemAsync(revision, new PartitionKey(revision.Type));
                 _logger.LogInformation("Item inserted");
                 _logger.LogInformation($"This query cost: {item.RequestCharge} RU/s");

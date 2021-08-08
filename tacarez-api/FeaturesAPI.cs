@@ -194,6 +194,8 @@ namespace tacarez_api
 
                 newFeature.GitHubName = getRepoNameFromURL(gitHubRepoResponse.content.url);
                 newFeature.GitHubRawURL = gitHubRepoResponse.content.downloadUrl;
+                newFeature.CreatedDate = DateTime.Now;
+                newFeature.LastModifiedDate = DateTime.Now;
                 ItemResponse<Feature> item = await _container.CreateItemAsync(newFeature, new PartitionKey(newFeature.Type));
                 _logger.LogInformation("Item inserted");
                 _logger.LogInformation($"This query cost: {item.RequestCharge} RU/s");
@@ -248,6 +250,37 @@ namespace tacarez_api
                 {
                     return new BadRequestObjectResult(gitHubResponse.errors);
                 }
+
+                //update last modified date
+                //get copy
+                //get feature
+                if (branch == "main")
+                {
+                    ItemResponse<Feature> featureSearch = await _container.ReadItemAsync<Feature>(featureName, new PartitionKey("feature"))
+                        .ConfigureAwait(false);
+                    Feature featureToUpdate = featureSearch.Resource;
+                    if (featureToUpdate == null)
+                    {
+                        return new NotFoundObjectResult("No feature found with that name");
+                    }
+                    //replace stakeholders
+                    featureToUpdate.LastModifiedDate = DateTime.Now;
+                    var replaceItemResponse = await _container.ReplaceItemAsync<Feature>(featureToUpdate, featureToUpdate.Id, new PartitionKey("feature"));
+                } else
+                {
+                    ItemResponse<Revision> revisionSearch = await _container.ReadItemAsync<Revision>(featureName + branch, new PartitionKey("revision"))
+                       .ConfigureAwait(false);
+                    Revision revisionToUpdate = revisionSearch.Resource;
+                    if (revisionToUpdate == null)
+                    {
+                        return new NotFoundObjectResult("No feature found with that name");
+                    }
+                    revisionToUpdate.LastModifiedDate = DateTime.Now;
+                    var replaceItemResponse = await _container.ReplaceItemAsync<Revision>(revisionToUpdate, featureName + branch, new PartitionKey("revision"));
+                }
+               
+                //modify copy
+
                 returnValue = new OkObjectResult(gitHubResponse);
             }
             catch (Exception ex)

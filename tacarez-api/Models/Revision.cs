@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 
 namespace tacarez_api
@@ -13,6 +14,8 @@ namespace tacarez_api
         public string RevisionName { get; set; }
         public string GitHubRawURL { get; set; }
         public string Description { get; set; }
+        public DateTime? CreatedDate { get; set; }
+        public DateTime? LastModifiedDate { get; set; }
         public User Owner { get; set; }
         public List<User> Contributors { get; set; }
     }

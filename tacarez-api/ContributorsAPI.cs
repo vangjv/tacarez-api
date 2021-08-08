@@ -51,7 +51,7 @@ namespace tacarez_api
                     allContributorsHaveGuid = false;
                 }
             });
-            if (allContributorsHaveGuid = false)
+            if (allContributorsHaveGuid == false)
             {
                 return new BadRequestObjectResult("All contributors must have a guid.");
             }
