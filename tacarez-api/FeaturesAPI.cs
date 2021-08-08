@@ -168,14 +168,10 @@ namespace tacarez_api
                 {
                     name = featureRequest.feature.Id,
                     description = featureRequest.feature.Description,
-                    is_private = false,
-                    has_issues = false,
-                    has_projects = false,
-                    has_wiki = false,
                     message = featureRequest.message,
                     content = featureRequest.content
                 };
-                var client = new RestClient(_config["GitHubEndpoint"] + "/api/CreateRepo");
+                var client = new RestClient(_config["GitHubEndpoint"] + "/api/repo");
                 client.Timeout = -1;
                 var request = new RestRequest(Method.POST);
                 request.AddHeader("Content-Type", "application/json");
@@ -184,14 +180,22 @@ namespace tacarez_api
                 Console.WriteLine(response.Content);
                 if (response.IsSuccessful == false)
                 {
-                    return new BadRequestObjectResult("Unable to create feature");
+                    return new BadRequestObjectResult("Unable to create feature. Please try another name.");
                 }
                 dynamic gitHubResponse = JsonConvert.DeserializeObject(response.Content);
                 if (gitHubResponse.errors != null)
                 {
                     return new BadRequestObjectResult(gitHubResponse.errors);
                 }
-                GithubNewRepoResponse gitHubRepoResponse = JsonConvert.DeserializeObject<GithubNewRepoResponse>(response.Content);
+                GithubNewRepoResponse gitHubRepoResponse;
+                try
+                {
+                    gitHubRepoResponse = JsonConvert.DeserializeObject<GithubNewRepoResponse>(response.Content);
+                } catch (Exception e)
+                {
+                    return new BadRequestObjectResult("Unable to parse GitHub response:" + e.Message);
+                }
+                
                 if (gitHubResponse.message != null)
                 {
                     if (((string)gitHubResponse.message).StartsWith("Invalid request"))
@@ -201,7 +205,7 @@ namespace tacarez_api
                 }
 
                 newFeature.GitHubName = getRepoNameFromURL(gitHubRepoResponse.content.url);
-                newFeature.GitHubRawURL = gitHubRepoResponse.content.download_url;
+                newFeature.GitHubRawURL = gitHubRepoResponse.content.downloadUrl;
                 ItemResponse<Feature> item = await _container.CreateItemAsync(newFeature, new PartitionKey(newFeature.Type));
                 _logger.LogInformation("Item inserted");
                 _logger.LogInformation($"This query cost: {item.RequestCharge} RU/s");
