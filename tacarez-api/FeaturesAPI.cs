@@ -219,6 +219,58 @@ namespace tacarez_api
             return returnValue;
         }
 
+        [FunctionName("UpdateFeature")]
+        public async Task<IActionResult> UpdateFeature(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "features/{featureName}/{branch}")] HttpRequest req, 
+            string featureName, string branch)
+        {
+            IActionResult returnValue = null;
+            if (featureName == null)
+            {
+                return new BadRequestObjectResult("Please include the feature name.");
+            }
+            if (branch == null)
+            {
+                return new BadRequestObjectResult("Please include the branch name.");
+            }
+            //##NEEDS IMPLEMENTATION check if request is owner 
+            
+            try
+            {
+                string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+                GithubContent updateRequest = JsonConvert.DeserializeObject<GithubContent>(requestBody);
+
+                if (updateRequest.message == null || updateRequest.content == null)
+                {
+                    return new BadRequestObjectResult("Invalid request");
+                }
+
+                var client = new RestClient(_config["GitHubEndpoint"] + "/api/repo/" + featureName + "/" + branch);
+                client.Timeout = -1;
+                var request = new RestRequest(Method.PUT);
+                request.AddHeader("Content-Type", "application/json");
+                request.AddJsonBody(updateRequest);
+                IRestResponse response = client.Execute(request);
+                if (response.IsSuccessful == false)
+                {
+                    return new BadRequestObjectResult("Unable to update feature.");
+                }
+                dynamic gitHubResponse = JsonConvert.DeserializeObject(response.Content);
+                if (gitHubResponse.errors != null)
+                {
+                    return new BadRequestObjectResult(gitHubResponse.errors);
+                }
+                returnValue = new OkObjectResult(gitHubResponse);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Could not insert item. Exception thrown: {ex.Message}");
+                return new BadRequestObjectResult("Unable to update feature.");
+
+            }
+            return returnValue;
+        }
+
         public async Task<bool> doesFeatureExist(string featureName)
         {
             try
