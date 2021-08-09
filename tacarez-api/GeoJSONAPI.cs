@@ -42,6 +42,8 @@ namespace tacarez_api
         {
             try
             {
+                featureName = featureName.ToLower();
+                featureName = featureName.Replace(" ", "-");
                 ItemResponse<Feature> featureSearch = await _container.ReadItemAsync<Feature>(featureName, new PartitionKey("feature"))
                   .ConfigureAwait(false);
 
@@ -76,6 +78,10 @@ namespace tacarez_api
         {
             try
             {
+                featureName = featureName.ToLower();
+                featureName = featureName.Replace(" ", "-");
+                revisionName = revisionName.ToLower();
+                revisionName = revisionName.Replace(" ", "-");
                 ItemResponse<Revision> revisionSearch = await _container.ReadItemAsync<Revision>(featureName + revisionName, new PartitionKey("revision"))
                   .ConfigureAwait(false);
 

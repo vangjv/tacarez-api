@@ -45,7 +45,9 @@ namespace tacarez_api
                 string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
                 NewRevisionRequest revisionRequest = JsonConvert.DeserializeObject<NewRevisionRequest>(requestBody);
                 revisionRequest.FeatureName = revisionRequest.FeatureName.Replace(" ", "-");
+                revisionRequest.FeatureName = revisionRequest.FeatureName.ToLower();
                 revisionRequest.RevisionName = revisionRequest.RevisionName.Replace(" ", "-");
+                revisionRequest.RevisionName = revisionRequest.RevisionName.ToLower();
                 if (await CosmosUtility.DoesFeatureExist(revisionRequest.FeatureName, _container) == false)
                 {
                     return new BadRequestObjectResult("No feature found with that name");
@@ -144,6 +146,10 @@ namespace tacarez_api
         {
             try
             {
+                featureName = featureName.ToLower();
+                featureName = featureName.Replace(" ", "-");
+                revisionName = revisionName.ToLower();
+                revisionName = revisionName.Replace(" ", "-");
                 ItemResponse<Revision> revisionSearch = await _container.ReadItemAsync<Revision>(featureName + revisionName, new PartitionKey("revision"))
                 .ConfigureAwait(false);
 

@@ -72,6 +72,7 @@ namespace tacarez_api
 
             try
             {
+                featureName = featureName.ToLower();
                 ItemResponse<Feature> response = await _container.ReadItemAsync<Feature>(featureName, new PartitionKey("feature"))
                 .ConfigureAwait(false);
 
@@ -143,6 +144,7 @@ namespace tacarez_api
                 NewFeatureRequest featureRequest = JsonConvert.DeserializeObject<NewFeatureRequest>(requestBody);
                 //replace spaces with hyphen
                 featureRequest.feature.Id = featureRequest.feature.Id.Replace(" ", "-");
+                featureRequest.feature.Id = featureRequest.feature.Id.ToLower();
                 Feature newFeature = featureRequest.feature.toFeature();
                 newFeature.Type = "feature";
                 if (newFeature.Id == null)
@@ -226,7 +228,8 @@ namespace tacarez_api
                 return new BadRequestObjectResult("Please include the branch name.");
             }
             //##NEEDS IMPLEMENTATION check if request is owner 
-            
+            featureName = featureName.ToLower();
+            branch = branch.ToLower();
             try
             {
                 string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
