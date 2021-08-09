@@ -141,13 +141,15 @@ namespace tacarez_api
             {
                 string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
                 NewFeatureRequest featureRequest = JsonConvert.DeserializeObject<NewFeatureRequest>(requestBody);
+                //replace spaces with hyphen
+                featureRequest.feature.Id.Replace(" ", "-");
                 Feature newFeature = featureRequest.feature.toFeature();
                 newFeature.Type = "feature";
                 if (newFeature.Id == null)
                 {
                     return new StatusCodeResult(StatusCodes.Status500InternalServerError);
                 }
-
+                
                 if (await doesFeatureExist(newFeature.Id) == true)
                 {
                     return new BadRequestObjectResult("A feature with that name already exist");
