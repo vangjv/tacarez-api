@@ -218,7 +218,6 @@ namespace tacarez_api
             [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "features/{featureName}/{branch}")] HttpRequest req, 
             string featureName, string branch)
         {
-            IActionResult returnValue = null;
             if (featureName == null)
             {
                 return new BadRequestObjectResult("Please include the feature name.");
@@ -286,16 +285,62 @@ namespace tacarez_api
                
                 //modify copy
 
-                returnValue = new OkObjectResult(gitHubResponse);
+                return new OkObjectResult(gitHubResponse);
             }
             catch (Exception ex)
             {
                 _logger.LogError($"Could not insert item. Exception thrown: {ex.Message}");
                 return new BadRequestObjectResult("Unable to update feature.");
-
             }
-            return returnValue;
         }
+
+        [FunctionName("UpdateFeatureProperties")]
+        public async Task<IActionResult> UpdateFeatureProperties(
+           [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "featureproperties")] HttpRequest req)
+        {
+            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+            UpdateFeaturePropertiesRequest featureProperties;
+            try
+            {
+                featureProperties = JsonConvert.DeserializeObject<UpdateFeaturePropertiesRequest>(requestBody);
+            }
+            catch (Exception e)
+            {
+                return new BadRequestObjectResult("Invalid request");
+            }
+            if (featureProperties == null || featureProperties.FeatureName == null)
+            {
+                return new BadRequestObjectResult("Invalid request");
+            }
+            if (featureProperties.Description == null && featureProperties.Tags == null)
+            {
+                return new BadRequestObjectResult("Nothing to update");
+            }
+
+                //get feature
+                ItemResponse<Feature> response = await _container.ReadItemAsync<Feature>(featureProperties.FeatureName, new PartitionKey("feature"))
+              .ConfigureAwait(false);
+            Feature featureToUpdate = response.Resource;
+            if (featureToUpdate == null)
+            {
+                return new NotFoundObjectResult("No feature found with that name");
+            }
+            //replace stakeholders
+            if (featureProperties.Description != null)
+            {
+                featureToUpdate.Description = featureProperties.Description;
+            }
+
+            if (featureProperties.Tags != null)
+            {
+                featureToUpdate.Tags = featureProperties.Tags;
+            }
+
+            var replaceItemResponse = await _container.ReplaceItemAsync<Feature>(featureToUpdate, featureToUpdate.Id, new PartitionKey("feature"));
+
+            return new OkObjectResult(replaceItemResponse.Resource);
+        }
+
 
         public async Task<bool> doesFeatureExist(string featureName)
         {
