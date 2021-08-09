@@ -142,7 +142,7 @@ namespace tacarez_api
                 string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
                 NewFeatureRequest featureRequest = JsonConvert.DeserializeObject<NewFeatureRequest>(requestBody);
                 //replace spaces with hyphen
-                featureRequest.feature.Id.Replace(" ", "-");
+                featureRequest.feature.Id = featureRequest.feature.Id.Replace(" ", "-");
                 Feature newFeature = featureRequest.feature.toFeature();
                 newFeature.Type = "feature";
                 if (newFeature.Id == null)
