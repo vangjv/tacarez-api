@@ -35,46 +35,67 @@ namespace tacarez_api
             _container = _database.GetContainer(_config["Container"]);
         }
 
-        [FunctionName("GeoJSONAPI")]
-        public async Task<HttpResponseMessage> GeoJSON(
+        [FunctionName("GetFeatureGeoJson")]
+        public async Task<HttpResponseMessage> GetFeatureGeoJson(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "geojson/{featureName}")] HttpRequest req,
             string featureName, ILogger log)
         {
             try
             {
-                QueryDefinition queryDefinition = new QueryDefinition("SELECT * FROM c WHERE c.type = 'feature' AND c.id = @featureName")
-                .WithParameter("@featureName", featureName);
-                FeedIterator<Feature> queryResultSetIterator = _container.GetItemQueryIterator<Feature>(queryDefinition);
-                List<Feature> features = new List<Feature>();
-                while (queryResultSetIterator.HasMoreResults)
-                {
-                    FeedResponse<Feature> currentResultSet = await queryResultSetIterator.ReadNextAsync();
-                    if (currentResultSet.Count > 0)
-                    {
-                        foreach (Feature feature in currentResultSet)
-                        {
-                            features.Add(feature);
-                            Console.WriteLine("\tRead {0}\n", feature);
-                        }
-                    }
-                }
-                if (features.Count > 0)
-                {
-                    //download geojson
-                    var client = new RestClient(features[0].GitHubRawURL);
-                    client.Timeout = -1;
-                    var request = new RestRequest(Method.GET);
-                    IRestResponse response = client.Execute(request);
-                    Console.WriteLine(response.Content);
-                    return new HttpResponseMessage(HttpStatusCode.OK)
-                    {
-                        Content = new StringContent(response.Content, Encoding.UTF8, "application/json")
-                    };
-                }
-                else
+                ItemResponse<Feature> featureSearch = await _container.ReadItemAsync<Feature>(featureName, new PartitionKey("feature"))
+                  .ConfigureAwait(false);
+
+                Feature feature = featureSearch.Resource;
+                if (feature == null)
                 {
                     return new HttpResponseMessage(HttpStatusCode.NotFound);
                 }
+        
+                //download geojson
+                var client = new RestClient(feature.GitHubRawURL);
+                client.Timeout = -1;
+                var request = new RestRequest(Method.GET);
+                IRestResponse response = client.Execute(request);
+                Console.WriteLine(response.Content);
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(response.Content, Encoding.UTF8, "application/json")
+                };
+                
+            }
+            catch (Exception ex)
+            {
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            }
+        }
+
+        [FunctionName("GetRevisionGeoJson")]
+        public async Task<HttpResponseMessage> GetRevisionGeoJson(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "geojson/{featureName}/{revisionName}")] HttpRequest req,
+            string featureName, string revisionName, ILogger log)
+        {
+            try
+            {
+                ItemResponse<Revision> revisionSearch = await _container.ReadItemAsync<Revision>(featureName + revisionName, new PartitionKey("revision"))
+                  .ConfigureAwait(false);
+
+                Revision revision = revisionSearch.Resource;
+                if (revision == null)
+                {
+                    return new HttpResponseMessage(HttpStatusCode.NotFound);
+                }
+
+                //download geojson
+                var client = new RestClient(revision.GitHubRawURL);
+                client.Timeout = -1;
+                var request = new RestRequest(Method.GET);
+                IRestResponse response = client.Execute(request);
+                Console.WriteLine(response.Content);
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(response.Content, Encoding.UTF8, "application/json")
+                };
+
             }
             catch (Exception ex)
             {

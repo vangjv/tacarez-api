@@ -134,5 +134,31 @@ namespace tacarez_api
             }
             return returnValue;
         }
+
+        [FunctionName("GetByRevisionByName")]
+        public async Task<IActionResult> GetByFeatureName(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "revisions/feature/{featureName}/{revisionName}")] HttpRequest req, string featureName,
+            string revisionName)
+        {
+            try
+            {
+                ItemResponse<Revision> revisionSearch = await _container.ReadItemAsync<Revision>(featureName + revisionName, new PartitionKey("revision"))
+                .ConfigureAwait(false);
+
+                Revision revision = revisionSearch.Resource;
+                if (revision == null)
+                {
+                    return new NotFoundObjectResult("No feature found with that name");
+                }
+                else
+                {
+                    return new OkObjectResult(revision);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new StatusCodeResult(StatusCodes.Status500InternalServerError);
+            }
+        }
     }
 }
