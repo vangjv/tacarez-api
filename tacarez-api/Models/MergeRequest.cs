@@ -17,6 +17,7 @@ namespace tacarez_api.Models
         public string Status { get; set; }
         public User Owner { get; set; }
         public User MergeRequester { get; set; }        
+        public string MergeRequesterNotes { get; set; }
         public List<User> Contributors { get; set; }
         public StakeHolderReview StakeholderReview { get; set; }
         public DateTime? CreatedDate { get; set; }

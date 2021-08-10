@@ -133,7 +133,7 @@ namespace tacarez_api
         }
 
         [FunctionName("AddFeature")]
-        public async Task<IActionResult> Run(
+        public async Task<IActionResult> AddFeature(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "features")] HttpRequest req)
         {
             IActionResult returnValue = null;

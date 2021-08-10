@@ -8,5 +8,6 @@ namespace tacarez_api.Models
     {
         public string FeatureName { get; set; }
         public string RevisionName { get; set; }
+        public string MergeRequesterNotes { get; set; }
     }
 }

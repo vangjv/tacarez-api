@@ -99,6 +99,7 @@ namespace tacarez_api
                     RevisionName = mergeRequest.RevisionName,
                     Owner = feature.Owner,
                     MergeRequester = revision.Owner,
+                    MergeRequesterNotes = mergeRequest.MergeRequesterNotes,
                     CreatedDate = DateTime.Now,
                     GitHubRawURL = "https://raw.githubusercontent.com/dshackathon/" + mergeRequest.FeatureName + "/" + mergeId + "/data.geojson",
                     StakeholderReview = new StakeHolderReview
@@ -155,8 +156,8 @@ namespace tacarez_api
             }
         }
 
-        [FunctionName("GetByMergeRequestByName")]
-        public async Task<IActionResult> GetByMergeRequestByName(
+        [FunctionName("GetMergeRequestByName")]
+        public async Task<IActionResult> GetMergeRequestByName(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "mergerequest/feature/{featureName}/{mergeId}")] HttpRequest req, string featureName,
             string mergeId)
         {
