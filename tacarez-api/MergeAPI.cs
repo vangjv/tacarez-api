@@ -117,5 +117,72 @@ namespace tacarez_api
                 return new BadRequestObjectResult(ex.Message);
             }
         }
+
+        [FunctionName("GetMergeRequestByUser")]
+        public async Task<IActionResult> GetMergesByUser(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "mergerequest/user/{guid}")] HttpRequest req, string guid)
+        {
+            try
+            {
+                QueryDefinition queryDefinition = new QueryDefinition("SELECT * FROM c WHERE c.type = 'merge' AND c.Owner.GUID = @guid")
+                .WithParameter("@guid", guid);
+                FeedIterator<MergeRequest> queryResultSetIterator = _container.GetItemQueryIterator<MergeRequest>(queryDefinition);
+                List<MergeRequest> mergeRequests = new List<MergeRequest>();
+                while (queryResultSetIterator.HasMoreResults)
+                {
+                    FeedResponse<MergeRequest> currentResultSet = await queryResultSetIterator.ReadNextAsync();
+                    if (currentResultSet.Count > 0)
+                    {
+                        foreach (MergeRequest mergeRequest in currentResultSet)
+                        {
+                            mergeRequests.Add(mergeRequest);
+                            Console.WriteLine("\tRead {0}\n", mergeRequest);
+                        }
+                    }
+                }
+                if (mergeRequests.Count > 0)
+                {
+                    return new OkObjectResult(mergeRequests);
+                }
+                else
+                {
+                    return new NotFoundObjectResult("No merge requests found for that user");
+                }
+            }
+            catch (Exception ex)
+            {
+                return new StatusCodeResult(StatusCodes.Status500InternalServerError);
+            }
+        }
+
+        [FunctionName("GetByMergeRequestByName")]
+        public async Task<IActionResult> GetByMergeRequestByName(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "mergerequest/feature/{featureName}/{mergeId}")] HttpRequest req, string featureName,
+            string mergeId)
+        {
+            try
+            {
+                featureName = featureName.ToLower();
+                featureName = featureName.Replace(" ", "-");
+                mergeId = mergeId.ToLower();
+                mergeId = mergeId.Replace(" ", "-");
+                ItemResponse<MergeRequest> mergeRequestSearch = await _container.ReadItemAsync<MergeRequest>(mergeId, new PartitionKey("merge"))
+                .ConfigureAwait(false);
+
+                MergeRequest mergeRequest = mergeRequestSearch.Resource;
+                if (mergeRequest == null)
+                {
+                    return new NotFoundObjectResult("No merge request found with that id");
+                }
+                else
+                {
+                    return new OkObjectResult(mergeRequest);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new StatusCodeResult(StatusCodes.Status500InternalServerError);
+            }
+        }
     }
 }

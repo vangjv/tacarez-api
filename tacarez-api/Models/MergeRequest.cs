@@ -14,6 +14,7 @@ namespace tacarez_api.Models
         public string FeatureName { get; set; }
         public string RevisionName { get; set; }
         public string GitHubRawURL { get; set; }
+        public string Status { get; set; }
         public User Owner { get; set; }
         public User MergeRequester { get; set; }        
         public List<User> Contributors { get; set; }
