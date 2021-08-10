@@ -33,7 +33,7 @@ namespace tacarez_api.Utility
         {
             try
             {
-                ItemResponse<Revision> featureResponse = await _container.ReadItemAsync<Revision>(featureName + "/" + revisionName, new PartitionKey("revision"));
+                ItemResponse<Revision> featureResponse = await _container.ReadItemAsync<Revision>(featureName + revisionName, new PartitionKey("revision"));
                 if (featureResponse.Resource != null)
                 {
                     return true;
