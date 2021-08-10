@@ -14,6 +14,7 @@ using RestSharp;
 using System.Net.Http;
 using System.Text;
 using System.Net;
+using tacarez_api.Models;
 
 namespace tacarez_api
 {
@@ -93,6 +94,44 @@ namespace tacarez_api
 
                 //download geojson
                 var client = new RestClient(revision.GitHubRawURL);
+                client.Timeout = -1;
+                var request = new RestRequest(Method.GET);
+                IRestResponse response = client.Execute(request);
+                Console.WriteLine(response.Content);
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(response.Content, Encoding.UTF8, "application/json")
+                };
+
+            }
+            catch (Exception ex)
+            {
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            }
+        }
+
+        [FunctionName("GetMergeGeoJson")]
+        public async Task<HttpResponseMessage> GetMergeGeoJson(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "geojsonmerge/{featureName}/{mergeId}")] HttpRequest req,
+            string featureName, string mergeId, ILogger log)
+        {
+            try
+            {
+                featureName = featureName.ToLower();
+                featureName = featureName.Replace(" ", "-");
+                mergeId = mergeId.ToLower();
+                mergeId = mergeId.Replace(" ", "-");
+                ItemResponse<MergeRequest> mergeRequestSearch = await _container.ReadItemAsync<MergeRequest>(mergeId, new PartitionKey("merge"))
+                  .ConfigureAwait(false);
+
+                MergeRequest mergeRequest = mergeRequestSearch.Resource;
+                if (mergeRequest == null)
+                {
+                    return new HttpResponseMessage(HttpStatusCode.NotFound);
+                }
+
+                //download geojson
+                var client = new RestClient(mergeRequest.GitHubRawURL);
                 client.Timeout = -1;
                 var request = new RestRequest(Method.GET);
                 IRestResponse response = client.Execute(request);
