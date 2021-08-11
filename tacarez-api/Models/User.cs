@@ -15,6 +15,5 @@ namespace tacarez_api
         public string Role { get; set; }
         public bool IsRegistered { get; set; }
 
-
     }
 }
