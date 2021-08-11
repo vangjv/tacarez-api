@@ -31,9 +31,9 @@ namespace tacarez_api
             _container = _database.GetContainer(_config["Container"]);
         }
 
-        [FunctionName("UpdateStakeholders")]
-        public async Task<IActionResult> UpdateStakeholders(
-           [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "stakeholders/{featureName}")] HttpRequest req,
+        [FunctionName("UpdateFeatureStakeholders")]
+        public async Task<IActionResult> UpdateFeatureStakeholders(
+           [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "stakeholders/feature/{featureName}")] HttpRequest req,
            string featureName)
         {
             if (featureName == null)
@@ -57,6 +57,36 @@ namespace tacarez_api
 
             return new OkObjectResult(replaceItemResponse.Resource);
         }
+
+        //[FunctionName("UpdateRevisionStakeholders")]
+        //public async Task<IActionResult> UpdateRevisionStakeholders(
+        //   [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "stakeholders/revision/{featureName}/{revisionName}")] HttpRequest req,
+        //   string featureName, string revisionName)
+        //{
+        //    if (featureName == null)
+        //    {
+        //        return new BadRequestObjectResult("Please include the feature name.");
+        //    }
+        //    if (revisionName == null)
+        //    {
+        //        return new BadRequestObjectResult("Please include the revision name.");
+        //    }
+        //    string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+        //    List<User> stakeholders = JsonConvert.DeserializeObject<List<User>>(requestBody);
+        //    ItemResponse<Revision> response = await _container.ReadItemAsync<Revision>(featureName + revisionName, new PartitionKey("revision"))
+        //      .ConfigureAwait(false);
+        //    Revision revisionToUpdate = response.Resource;
+        //    if (revisionToUpdate == null)
+        //    {
+        //        return new NotFoundObjectResult("No feature found with that name");
+        //    }
+        //    //replace stakeholders
+        //    revisionToUpdate.Stakeholders = stakeholders;
+        //    var replaceItemResponse = await _container.ReplaceItemAsync<Revision>(revisionToUpdate, revisionToUpdate.Id, new PartitionKey("revision"));
+
+        //    return new OkObjectResult(replaceItemResponse.Resource);
+        //}
+
 
     }
 }

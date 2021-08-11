@@ -10,6 +10,7 @@ using Newtonsoft.Json;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
 using System.Collections.Generic;
+using tacarez_api.Models;
 
 namespace tacarez_api
 {
@@ -31,9 +32,9 @@ namespace tacarez_api
             _container = _database.GetContainer(_config["Container"]);
         }
 
-        [FunctionName("UpdateContributors")]
-        public async Task<IActionResult> UpdateStakeholders(
-           [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "contributors/{featureName}")] HttpRequest req,
+        [FunctionName("UpdateFeatureContributors")]
+        public async Task<IActionResult> UpdateFeatureContributors(
+           [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "contributors/feature/{featureName}")] HttpRequest req,
            string featureName)
         {
             if (featureName == null)
@@ -42,20 +43,6 @@ namespace tacarez_api
             }
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             List<User> contributors = JsonConvert.DeserializeObject<List<User>>(requestBody);
-            //bool allContributorsHaveGuid = true;
-            //check for guid
-            //contributors.ForEach(contributor =>
-            //{
-            //    if (contributor.GUID == null)
-            //    {
-            //        allContributorsHaveGuid = false;
-            //    }
-            //});
-            //if (allContributorsHaveGuid == false)
-            //{
-            //    return new BadRequestObjectResult("All contributors must have a guid.");
-            //}
-
             //get feature
             ItemResponse<Feature> response = await _container.ReadItemAsync<Feature>(featureName, new PartitionKey("feature"))
               .ConfigureAwait(false);
@@ -67,7 +54,62 @@ namespace tacarez_api
             //replace stakeholders
             featureToUpdate.Contributors = contributors;
             var replaceItemResponse = await _container.ReplaceItemAsync<Feature>(featureToUpdate, featureToUpdate.Id, new PartitionKey("feature"));
+            return new OkObjectResult(replaceItemResponse.Resource);
+        }
 
+        [FunctionName("UpdateRevisionContributors")]
+        public async Task<IActionResult> UpdateRevisionContributors(
+           [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "contributors/revision/{featureName}/{revisionName}")] HttpRequest req,
+           string featureName, string revisionName)
+        {
+            if (featureName == null)
+            {
+                return new BadRequestObjectResult("Please include the feature name.");
+            }
+            if (revisionName == null)
+            {
+                return new BadRequestObjectResult("Please include the revision name.");
+            }
+            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+            List<User> contributors = JsonConvert.DeserializeObject<List<User>>(requestBody);
+            //get revision
+            ItemResponse<Revision> response = await _container.ReadItemAsync<Revision>(featureName + revisionName, new PartitionKey("revision"))
+              .ConfigureAwait(false);
+            Revision revisionToUpdate = response.Resource;
+            if (revisionToUpdate == null)
+            {
+                return new NotFoundObjectResult("No feature found with that name");
+            }
+            //replace stakeholders
+            revisionToUpdate.Contributors = contributors;
+            var replaceItemResponse = await _container.ReplaceItemAsync<Revision>(revisionToUpdate, revisionToUpdate.Id, new PartitionKey("revision"));
+            return new OkObjectResult(replaceItemResponse.Resource);
+        }
+
+        [FunctionName("UpdateMergeRequestContributors")]
+        public async Task<IActionResult> UpdateMergeRequestContributors(
+         [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "contributors/mergerequest/{featureName}/{mergeId}")] HttpRequest req,
+         string featureName, string mergeId)
+        {
+            if (featureName == null)
+            {
+                return new BadRequestObjectResult("Please include the feature name.");
+            }
+            if (mergeId == null)
+            {
+                return new BadRequestObjectResult("Please include the revision name.");
+            }
+            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+            List<User> contributors = JsonConvert.DeserializeObject<List<User>>(requestBody);
+            ItemResponse<MergeRequest> response = await _container.ReadItemAsync<MergeRequest>(mergeId, new PartitionKey("merge"))
+              .ConfigureAwait(false);
+            MergeRequest mergeRequestToUpdate = response.Resource;
+            if (mergeRequestToUpdate == null)
+            {
+                return new NotFoundObjectResult("No feature found with that name");
+            }
+            mergeRequestToUpdate.Contributors = contributors;
+            var replaceItemResponse = await _container.ReplaceItemAsync<MergeRequest>(mergeRequestToUpdate, mergeRequestToUpdate.Id, new PartitionKey("merge"));
             return new OkObjectResult(replaceItemResponse.Resource);
         }
 
