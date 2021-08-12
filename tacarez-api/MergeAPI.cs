@@ -185,5 +185,79 @@ namespace tacarez_api
                 return new StatusCodeResult(StatusCodes.Status500InternalServerError);
             }
         }
+
+        [FunctionName("UpdateMergeRequest")]
+        public async Task<IActionResult> UpdateMergeRequest(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "mergerequest/feature/{featureName}/{mergeId}")] HttpRequest req,
+            string featureName, string mergeId)
+        {
+            if (featureName == null)
+            {
+                return new BadRequestObjectResult("Please include the feature name.");
+            }
+            if (mergeId == null)
+            {
+                return new BadRequestObjectResult("Please include the merge Id.");
+            }
+            //##NEEDS IMPLEMENTATION check if request is owner 
+            featureName = featureName.ToLower();
+            featureName = featureName.Replace(" ", "-");
+            mergeId = mergeId.ToLower();
+            mergeId = mergeId.Replace(" ", "-");
+            try
+            {
+                string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+                GithubContent updateRequest = JsonConvert.DeserializeObject<GithubContent>(requestBody);
+                if (updateRequest.message == null || updateRequest.content == null)
+                {
+                    return new BadRequestObjectResult("Invalid request");
+                }
+
+                //check if merge request has a stakeholder revew in progress
+                //get merge request
+                ItemResponse<MergeRequest> mergeRequestSearch = await _container.ReadItemAsync<MergeRequest>(mergeId, new PartitionKey("merge"))
+                .ConfigureAwait(false);
+
+                MergeRequest mergeRequest = mergeRequestSearch.Resource;
+                if (mergeRequest == null)
+                {
+                    return new NotFoundObjectResult("No merge request found with that id");
+                }
+                if (mergeRequest.StakeholderReview.EnvelopeId == null)
+                {
+                    //update the content in github only
+                    var client = new RestClient(_config["GitHubEndpoint"] + "/api/repo/" + featureName + "/" + mergeId);
+                    client.Timeout = -1;
+                    var request = new RestRequest(Method.PUT);
+                    request.AddHeader("Content-Type", "application/json");
+                    request.AddJsonBody(updateRequest);
+                    IRestResponse response = client.Execute(request);
+                    if (response.IsSuccessful == false)
+                    {
+                        return new BadRequestObjectResult("Unable to update merge request.");
+                    }
+                    dynamic gitHubResponse = JsonConvert.DeserializeObject(response.Content);
+                    if (gitHubResponse.errors != null)
+                    {
+                        return new BadRequestObjectResult(gitHubResponse.errors);
+                    }
+                    mergeRequest.LastModifiedDate = DateTime.Now;
+                    //update githubrawurl to specific commit file to bust cacheing
+                    //mergeRequest.GitHubRawURL = "https://raw.githubusercontent.com/dshackathon/west-africa/1ef791185335166d5af0439c97fb8cfd23fdc967/data.geojson";
+                    mergeRequest.GitHubRawURL = "https://raw.githubusercontent.com/dshackathon/" + mergeRequest.FeatureName + "/" + gitHubResponse.commit.sha + "/data.geojson";                    
+                    var replaceItemResponse = await _container.ReplaceItemAsync<MergeRequest>(mergeRequest, mergeRequest.Id, new PartitionKey("merge"));
+                    return new OkObjectResult(gitHubResponse);
+                } else
+                {
+                    //stakeholder review is in progress. update the mergerequest in github then add new contents to the envelope
+                    return new OkObjectResult("");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Could not insert item. Exception thrown: {ex.Message}");
+                return new BadRequestObjectResult("Unable to update feature.");
+            }
+        }
     }
 }

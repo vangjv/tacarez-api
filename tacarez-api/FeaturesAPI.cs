@@ -228,7 +228,9 @@ namespace tacarez_api
             }
             //##NEEDS IMPLEMENTATION check if request is owner 
             featureName = featureName.ToLower();
+            featureName = featureName.Replace(" ", "-");
             branch = branch.ToLower();
+            branch = branch.Replace(" ", "-");
             try
             {
                 string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
@@ -267,8 +269,9 @@ namespace tacarez_api
                     {
                         return new NotFoundObjectResult("No feature found with that name");
                     }
-                    //replace stakeholders
                     featureToUpdate.LastModifiedDate = DateTime.Now;
+                    //cache bust
+                    featureToUpdate.GitHubRawURL = "https://raw.githubusercontent.com/dshackathon/" + featureToUpdate.Id + "/" + gitHubResponse.commit.sha + "/data.geojson";
                     var replaceItemResponse = await _container.ReplaceItemAsync<Feature>(featureToUpdate, featureToUpdate.Id, new PartitionKey("feature"));
                 } else
                 {
@@ -280,6 +283,8 @@ namespace tacarez_api
                         return new NotFoundObjectResult("No feature found with that name");
                     }
                     revisionToUpdate.LastModifiedDate = DateTime.Now;
+                    //cache bust
+                    revisionToUpdate.GitHubRawURL = "https://raw.githubusercontent.com/dshackathon/" + revisionToUpdate.FeatureName + "/" + gitHubResponse.commit.sha + "/data.geojson";
                     var replaceItemResponse = await _container.ReplaceItemAsync<Revision>(revisionToUpdate, featureName + branch, new PartitionKey("revision"));
                 }
                

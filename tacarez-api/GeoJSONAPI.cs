@@ -58,6 +58,11 @@ namespace tacarez_api
                 var client = new RestClient(feature.GitHubRawURL);
                 client.Timeout = -1;
                 var request = new RestRequest(Method.GET);
+                //request.AddHeader("Cache-Control", "private, max-age=0, s-maxage=0, no-store, no-cache, must-revalidate, proxy-revalidate");
+                request.AddHeader("Cache-Control", "private, max-age=1, s-maxage=1");
+                request.AddHeader("Pragma", "no-cache");
+                request.AddHeader("Expires", "0");
+                request.AddHeader("Surrogate-Control", "no-store");
                 IRestResponse response = client.Execute(request);
                 Console.WriteLine(response.Content);
                 return new HttpResponseMessage(HttpStatusCode.OK)
