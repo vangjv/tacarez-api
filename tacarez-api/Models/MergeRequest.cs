@@ -28,6 +28,7 @@ namespace tacarez_api.Models
     {
         public string EnvelopeId { get; set; }
         public string Status { get; set; }
+        public string MessageToStakeholders { get; set; }
         public DateTime? CreatedDate { get; set; }
         public List<User> Stakeholders { get; set; }
 
