@@ -291,17 +291,13 @@ namespace tacarez_api
                         var httpRequest = new RestRequest(Method.GET);
                         IRestResponse githubResponse = httpClient.Execute(httpRequest);
                         string mergeGeoJSON = githubResponse.Content;
-
+                        byte[] mergeGeoJSONBytes = System.Text.Encoding.UTF8.GetBytes(mergeGeoJSON);
+                        string base64MergeGeoJSONSystem = Convert.ToBase64String(mergeGeoJSONBytes);
                         //send changes to Github for feature
                         GithubContent updateRequest = new GithubContent
                         {
                             message = "Merge from merge request:" + mergeRequest.Id,
-                            content = mergeGeoJSON,
-                            committer = new Committer
-                            {
-                                name = "system",
-                                email = "dshackathon@meliority.solutions"
-                            }
+                            content = base64MergeGeoJSONSystem
                         };
 
                         var gitHubHttpClient = new RestClient(_config["GitHubEndpoint"] + "/api/repo/" + mergeRequest.FeatureName + "/main");
