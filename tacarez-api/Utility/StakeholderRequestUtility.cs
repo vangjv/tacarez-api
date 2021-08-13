@@ -169,7 +169,7 @@ namespace tacarez_api.Utility
             Url = url;
         }
         public string Url { get; set; }
-        public string ExtraLoadingWait { get; set; } = "0";
+        public string ExtraLoadingWait { get; set; } = "15000";
         public string ScreenshotWidth { get; set; } = "1920";
         public string ScreenshotHeight { get; set; } = "1080";
     }

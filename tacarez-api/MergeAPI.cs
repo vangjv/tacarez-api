@@ -259,5 +259,113 @@ namespace tacarez_api
                 return new BadRequestObjectResult("Unable to update feature.");
             }
         }
+
+        [FunctionName("ApproveMergeRequest")]
+        public async Task<IActionResult> ApproveMergeRequest(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "merge")] HttpRequest req,
+            ILogger log)
+        {
+            try
+            {
+                string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+                MergeRequestAction mergeRequestAction = JsonConvert.DeserializeObject<MergeRequestAction>(requestBody);
+                if (mergeRequestAction.Action == null || mergeRequestAction.MergeId == null)
+                {
+                    return new BadRequestObjectResult("Invalid request");
+                }
+                if (mergeRequestAction.Action == "approve")
+                {
+                    ItemResponse<MergeRequest> mergeRequestSearch = await _container.ReadItemAsync<MergeRequest>(mergeRequestAction.MergeId, new PartitionKey("merge"))
+                      .ConfigureAwait(false);
+
+                    MergeRequest mergeRequest = mergeRequestSearch.Resource;
+                    if (mergeRequest == null)
+                    {
+                        return new NotFoundObjectResult("No merge request found with that id");
+                    }
+                    else
+                    {
+                        //download merge geojson
+                        var httpClient = new RestClient(mergeRequest.GitHubRawURL);
+                        httpClient.Timeout = -1;
+                        var httpRequest = new RestRequest(Method.GET);
+                        IRestResponse githubResponse = httpClient.Execute(httpRequest);
+                        string mergeGeoJSON = githubResponse.Content;
+
+                        //send changes to Github for feature
+                        GithubContent updateRequest = new GithubContent
+                        {
+                            message = "Merge from merge request:" + mergeRequest.Id,
+                            content = mergeGeoJSON,
+                            committer = new Committer
+                            {
+                                name = "system",
+                                email = "dshackathon@meliority.solutions"
+                            }
+                        };
+
+                        var gitHubHttpClient = new RestClient(_config["GitHubEndpoint"] + "/api/repo/" + mergeRequest.FeatureName + "/main");
+                        gitHubHttpClient.Timeout = -1;
+                        var githubUpdateRequest = new RestRequest(Method.PUT);
+                        githubUpdateRequest.AddHeader("Content-Type", "application/json");
+                        githubUpdateRequest.AddJsonBody(updateRequest);
+                        IRestResponse githubUpdateResponse = gitHubHttpClient.Execute(githubUpdateRequest);
+                        if (githubUpdateResponse.IsSuccessful == false)
+                        {
+                            return new BadRequestObjectResult("Unable to update feature.");
+                        }
+                        dynamic gitHubUpdateResponseData = JsonConvert.DeserializeObject(githubUpdateResponse.Content);
+                        if (gitHubUpdateResponseData.errors != null)
+                        {
+                            return new BadRequestObjectResult(gitHubUpdateResponseData.errors);
+                        }
+
+                        //update last modified date
+              
+                        ItemResponse<Feature> featureSearch = await _container.ReadItemAsync<Feature>(mergeRequest.FeatureName, new PartitionKey("feature"))
+                            .ConfigureAwait(false);
+                        Feature featureToUpdate = featureSearch.Resource;
+                        if (featureToUpdate == null)
+                        {
+                            return new NotFoundObjectResult("No feature found with that name");
+                        }
+                        featureToUpdate.LastModifiedDate = DateTime.Now;
+                        //cache bust
+                        featureToUpdate.GitHubRawURL = "https://raw.githubusercontent.com/dshackathon/" + featureToUpdate.Id + "/" + gitHubUpdateResponseData.commit.sha + "/data.geojson";
+                        var replaceItemResponse = await _container.ReplaceItemAsync<Feature>(featureToUpdate, featureToUpdate.Id, new PartitionKey("feature"));
+
+                        mergeRequest.LastModifiedDate = DateTime.Now;
+                        mergeRequest.Status = "Approved";
+                        //save changes to merge request
+                        var replaceMergeRequestResponse = await _container.ReplaceItemAsync<MergeRequest>(mergeRequest, mergeRequest.Id, new PartitionKey("merge"));
+                        return new OkObjectResult(replaceMergeRequestResponse.Resource);
+                    }
+                }
+                if (mergeRequestAction.Action == "deny")
+                {
+                    ItemResponse<MergeRequest> mergeRequestSearch = await _container.ReadItemAsync<MergeRequest>(mergeRequestAction.MergeId, new PartitionKey("merge"))
+                    .ConfigureAwait(false);
+                    MergeRequest mergeRequest = mergeRequestSearch.Resource;
+                    if (mergeRequest == null)
+                    {
+                        return new NotFoundObjectResult("No merge request found with that id");
+                    }
+                    else
+                    {
+                        mergeRequest.LastModifiedDate = DateTime.Now;
+                        mergeRequest.Status = "Denied";
+                        //save changes to merge request
+                        var replaceMergeRequestResponse = await _container.ReplaceItemAsync<MergeRequest>(mergeRequest, mergeRequest.Id, new PartitionKey("merge"));
+                        return new OkObjectResult(replaceMergeRequestResponse.Resource);
+                    }
+                }
+                return new BadRequestObjectResult("Invalid request");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Could not insert item. Exception thrown: {ex.Message}");
+                return new BadRequestObjectResult(ex.Message);
+            }
+        }
     }
 }
