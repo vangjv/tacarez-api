@@ -152,7 +152,7 @@ namespace tacarez_api.Utility
             //http call to tacarezdocusignapi
             string envelopeId = await SendEnvelopeRequest(newEnvelope);
             //save envelope data to merge request
-            mergeRequest.StakeholderReview.EnvelopeId = envelopeId;
+            mergeRequest.StakeholderReview.EnvelopeId = envelopeId.Replace("\"","");
             mergeRequest.StakeholderReview.Status = "Review sent";
             mergeRequest.StakeholderReview.CreatedDate = DateTime.Now;
             mergeRequest.StakeholderReview.MessageToStakeholders = messageFromSender;
